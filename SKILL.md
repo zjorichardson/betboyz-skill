@@ -831,6 +831,55 @@ After step 3, use the API key for all subsequent requests.
 
 ---
 
+## State Management
+
+**Critical:** The API key is shown exactly once when created. If you lose it, the only recovery is to revoke and create a new one. You **must** persist credentials after the setup flow.
+
+### What to Save After Setup
+
+After completing the First-Time Setup workflow, immediately save these values to your environment or config file:
+
+| Value | Where It Comes From | Why It Matters |
+|-------|---------------------|----------------|
+| `BETBOYZ_BASE_URL` | Provided by user or defaults to `https://api.betboyz.app` | Every request needs this |
+| `BETBOYZ_API_KEY` | `POST /v1/keys` → `data.key` | **Shown once, never again.** This is your primary auth. |
+| `BETBOYZ_CUSTOMER_ID` | `POST /v1/customers/register` → `data.id` | Useful for debugging, not required for API calls |
+| `BETBOYZ_ACCOUNT_IDS` | `POST /v1/accounts` → `data.id` (one per account) | Every bet links to an account. Save all account IDs with labels. |
+
+### How to Save (by platform)
+
+**Claude Code / OpenClaw agents:**
+Write credentials to your `.env` file or equivalent config immediately after each setup step:
+```
+BETBOYZ_BASE_URL=https://api.betboyz.app
+BETBOYZ_API_KEY=bb_live_04bbe965aa1debeb0038e057ebd82144
+BETBOYZ_CUSTOMER_ID=878bfc8c-0219-4400-b036-121fe03d842c
+BETBOYZ_ACCOUNT_FANDUEL=<uuid>
+BETBOYZ_ACCOUNT_DRAFTKINGS=<uuid>
+BETBOYZ_ACCOUNT_PAPER_NFL=<uuid>
+```
+
+**Other agents:**
+Use whatever persistence mechanism your platform provides (memory, config files, key-value store). The API key is the most critical — without it, you cannot authenticate.
+
+### On Subsequent Sessions
+
+1. Check if `BETBOYZ_API_KEY` is already set in your environment
+2. If yes → skip setup, start making API calls
+3. If no → run the First-Time Setup workflow and save credentials
+4. To discover existing accounts: `GET /v1/accounts` (requires a valid API key)
+5. To verify your key still works: `GET /v1/usage` (returns tier, limits, and trial status)
+
+### If You Lose Your API Key
+
+1. Log in: `POST /v1/customers/login` (email + password still works)
+2. List keys: `GET /v1/keys` (shows prefix + last4 to identify which key is which)
+3. Revoke the lost key: `DELETE /v1/keys/{key_id}`
+4. Create a new key: `POST /v1/keys`
+5. Save the new key immediately
+
+---
+
 ## Tips for AI Agents
 
 1. **Always check `meta.has_more`** when listing bets. Don't assume a single page contains all results.
