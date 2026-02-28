@@ -2,7 +2,7 @@
 name: Bet Boyz
 description: >
   Track, analyze, and optimize sports betting activity across sportsbooks.
-  Manage accounts, log bets of all types (straight, parlay, teaser, round robin, futures, props),
+  Manage accounts, log bets of all types (moneyline, spread, parlay, teaser, round robin, futures, props),
   settle outcomes, surface cognitive biases, and query live odds — all through a REST API
   designed for AI agents.
 version: 1.0.0
@@ -46,7 +46,7 @@ Authorization: Bearer {BETBOYZ_API_KEY}
 Content-Type: application/json
 
 {
-  "bet_type": "straight",
+  "bet_type": "moneyline",
   "stake": 50.00,
   "odds_american": -150,
   "legs": [{
@@ -274,7 +274,7 @@ Create a sportsbook account.
 
 **Errors:** `409 duplicate_bookmaker` (same real bookmaker twice), `409 duplicate_paper_name` (same paper name twice), `422` missing required fields.
 
-Available bookmaker keys: `fanduel`, `draftkings`, `betmgm`, `caesars`, `pointsbet`, `fanatics`, `hard_rock`, `espnbet`.
+Available bookmaker keys: `fanduel`, `draftkings`, `betmgm`, `caesars`, `pointsbet`, `barstool`, `betrivers`, `unibet`.
 
 #### GET /v1/accounts
 List all sportsbook accounts for the customer. Returns both real and paper accounts.
@@ -299,11 +299,11 @@ The core of the platform. Create, query, update, and settle bets of any type.
 
 Create a single bet. The `legs` array defines the individual selections.
 
-**Straight bet (moneyline):**
+**Moneyline bet:**
 ```json
 {
   "account_id": "uuid",               // optional, links bet to a sportsbook account
-  "bet_type": "straight",
+  "bet_type": "moneyline",
   "stake": 50.00,
   "odds_american": -150,
   "sport_key": "americanfootball_nfl",
@@ -322,7 +322,7 @@ Create a single bet. The `legs` array defines the individual selections.
 **Spread bet:**
 ```json
 {
-  "bet_type": "straight",
+  "bet_type": "spread",
   "stake": 100.00,
   "odds_american": -110,
   "legs": [{
@@ -338,7 +338,7 @@ Create a single bet. The `legs` array defines the individual selections.
 **Total (over/under):**
 ```json
 {
-  "bet_type": "straight",
+  "bet_type": "total",
   "stake": 50.00,
   "odds_american": -110,
   "legs": [{
@@ -354,11 +354,11 @@ Create a single bet. The `legs` array defines the individual selections.
 **Player prop:**
 ```json
 {
-  "bet_type": "straight",
+  "bet_type": "prop_player",
   "stake": 25.00,
   "odds_american": -120,
   "legs": [{
-    "bet_type": "player_prop",
+    "bet_type": "prop_player",
     "event_description": "Chiefs vs Ravens",
     "player_name": "Patrick Mahomes",
     "prop_stat": "passing_yards",
@@ -369,14 +369,14 @@ Create a single bet. The `legs` array defines the individual selections.
 }
 ```
 
-**Futures:**
+**Future:**
 ```json
 {
-  "bet_type": "straight",
+  "bet_type": "future",
   "stake": 25.00,
   "odds_american": 800,
   "legs": [{
-    "bet_type": "futures",
+    "bet_type": "future",
     "future_market": "super_bowl_winner",
     "future_outcome": "Kansas City Chiefs",
     "odds_american": 800
@@ -427,7 +427,7 @@ Create a single bet. The `legs` array defines the individual selections.
     },
     {
       "leg_number": 2,
-      "bet_type": "player_prop",
+      "bet_type": "prop_player",
       "event_description": "Chiefs vs Ravens",
       "player_name": "Patrick Mahomes",
       "prop_stat": "passing_yards",
@@ -482,7 +482,7 @@ Create a single bet. The `legs` array defines the individual selections.
 **Live bet (placed during a game):**
 ```json
 {
-  "bet_type": "straight",
+  "bet_type": "live",
   "stake": 30.00,
   "odds_american": +150,
   "live_game_time": "Q3 8:42",
@@ -495,9 +495,9 @@ Create a single bet. The `legs` array defines the individual selections.
 }
 ```
 
-**All supported bet_type values:** `straight`, `parlay`, `same_game_parlay`, `teaser`, `if_bet`, `reverse`, `round_robin`.
+**All supported bet_type values:** `moneyline`, `spread`, `total`, `prop_player`, `prop_game`, `future`, `live`, `parlay`, `same_game_parlay`, `teaser`, `if_bet`, `reverse`, `round_robin`.
 
-**All supported leg bet_type values:** `moneyline`, `spread`, `total`, `player_prop`, `game_prop`, `futures`.
+**All supported leg bet_type values:** `moneyline`, `spread`, `total`, `prop_player`, `prop_game`, `future`.
 
 **Validation rules:**
 - `stake` must be > 0
@@ -543,7 +543,7 @@ List bets with optional filters and cursor pagination.
 | Param | Type | Description |
 |-------|------|-------------|
 | `status` | string | Filter by status: `pending`, `won`, `lost`, `push`, `void`, `cashed_out` |
-| `bet_type` | string | Filter by bet type: `straight`, `parlay`, etc. |
+| `bet_type` | string | Filter by bet type: `moneyline`, `parlay`, `prop_player`, etc. |
 | `account_id` | UUID | Filter by sportsbook account |
 | `sport_key` | string | Filter by sport (e.g. `americanfootball_nfl`) |
 | `cursor` | string | Pagination cursor from previous response |
@@ -609,12 +609,12 @@ For spread/total/prop bets, `result_value` is the actual numeric outcome (e.g., 
 
 Performance analytics computed from the customer's betting history. All endpoints require `analytics:read` scope.
 
-All analytics endpoints accept these query parameters:
-- `account_id` (string, optional) — restrict to a specific sportsbook account
-- `include_paper` (bool, optional, default: `false`) — include paper account bets in calculations
-
 #### GET /v1/analytics/summary
 Overall performance summary.
+
+**Query parameters:**
+- `account_id` (string, optional) — restrict to a specific sportsbook account
+- `include_paper` (bool, optional, default: `false`) — include paper account bets in calculations
 
 **Response fields:**
 - `total_bets`, `total_won`, `total_lost`, `total_push`, `total_void`, `pending` — bet counts
@@ -665,6 +665,8 @@ Cognitive bias detection — the platform's core differentiator. Analyzes bettin
 
 #### GET /v1/analytics/time-patterns
 Performance patterns by day of week and hour of day. Helps identify when the user bets best/worst.
+
+> **Note:** This endpoint is not yet fully implemented and always returns empty arrays for both fields.
 
 **Response fields:**
 - `by_day_of_week` — array of 7 entries (0=Monday through 6=Sunday), each with `day_name`, `bets_placed`, `win_rate`, `profit_loss`, `roi_pct`
@@ -890,7 +892,7 @@ Use whatever persistence mechanism your platform provides (memory, config files,
 
 4. **Check biases regularly.** After every 10-20 settled bets, call `GET /v1/analytics/biases` to flag patterns early.
 
-5. **Use `account_id` filters** on analytics to isolate performance by sportsbook or paper vs real.
+5. **Use `account_id` and `include_paper` filters** on `GET /v1/analytics/summary` to isolate performance by sportsbook or paper vs real. Note: the other analytics endpoints (`by-sport`, `by-type`, `by-book`, `streaks`, `biases`) do not support these filters.
 
 6. **Batch create bets** when logging historical data. `POST /v1/bets/batch` handles up to 100 bets per request.
 
